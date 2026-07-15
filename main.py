@@ -3,11 +3,11 @@
 GeoCAR Tools
 -------------------------------------------------------------------------------
 Arquivo.....: main.py
-Versão......: MVP 0.1 - Build 001
+Versão......: 4.0
 Autor.......: Brian Evanovick + OpenAI
 
 Descrição...:
-    Ponto de entrada da aplicação.
+    Inicialização da aplicação.
 ===============================================================================
 """
 
@@ -15,18 +15,36 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
+from app.core.app_state import AppState
 from app.main_window import MainWindow
 
 
 def main():
-    """Inicializa a aplicação."""
+    """
+    Inicializa a aplicação.
+    """
 
     app = QApplication(sys.argv)
 
-    window = MainWindow()
+    app.setApplicationName(
+        "GeoCAR Tools"
+    )
+
+    app.setOrganizationName(
+        "GeoCAR"
+    )
+
+    state = AppState()
+
+    window = MainWindow(
+        state=state
+    )
+
     window.show()
 
-    sys.exit(app.exec())
+    sys.exit(
+        app.exec()
+    )
 
 
 if __name__ == "__main__":

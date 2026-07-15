@@ -1,8 +1,14 @@
 """
 ===============================================================================
 GeoCAR Tools
-Versão 2.1
-Importer
+-------------------------------------------------------------------------------
+Arquivo.....: importer.py
+Módulo......: Importação de Shapefile
+Versão......: 4.0.1
+Autor.......: Brian Evanovick + OpenAI
+
+Descrição...:
+    Realiza a leitura inicial do Shapefile sem executar reprojeções.
 ===============================================================================
 """
 
@@ -10,7 +16,8 @@ import os
 
 import geopandas as gpd
 from PySide6.QtWidgets import QFileDialog
-from shapely.geometry import MultiPolygon, Polygon
+
+from app.services.geometry_service import GeometryService
 
 
 class Importer:
@@ -45,222 +52,119 @@ class Importer:
         gdf = gpd.read_file(path)
 
         if gdf.empty:
-            raise Exception(
-                "O shapefile não possui feições."
+            raise ValueError(
+                "O Shapefile não possui feições."
             )
 
-        if gdf.crs is None:
-            raise Exception(
-                "O shapefile não possui CRS."
+        crs_text = (
+            str(gdf.crs)
+            if gdf.crs is not None
+            else "Não definido"
+        )
+
+        geometry_types = (
+            GeometryService.geometry_types(gdf)
+        )
+
+        invalid_count = (
+            GeometryService.count_invalid_geometries(
+                gdf
             )
+        )
 
-        calculation_crs = gdf.estimate_utm_crs()
-
-        if calculation_crs is None:
-
-            raise Exception(
-                "Não foi possível determinar "
-                "um CRS adequado."
+        null_count = (
+            GeometryService.count_null_geometries(
+                gdf
             )
-
-        calc = gdf.to_crs(calculation_crs)
-
-        geometry_types = sorted(
-            gdf.geom_type.dropna().unique().tolist()
         )
 
-        invalid_count = int(
-            (~gdf.geometry.is_valid).sum()
+        empty_count = (
+            GeometryService.count_empty_geometries(
+                gdf
+            )
         )
 
-        null_count = int(
-            gdf.geometry.isna().sum()
+        multipart_count = (
+            GeometryService.count_multipart_geometries(
+                gdf
+            )
         )
 
-        empty_count = int(
-            gdf.geometry.is_empty.sum()
+        duplicate_count = (
+            GeometryService.count_duplicate_geometries(
+                gdf
+            )
         )
 
-        multipart_count = int(
-
-            gdf.geometry.apply(
-
-                lambda g:
-
-                isinstance(
-                    g,
-                    MultiPolygon
-                )
-
-            ).sum()
-
-        )
-
-        duplicate_count = int(
-
-            gdf.geometry.astype(str)
-
-            .duplicated()
-
-            .sum()
-
-        )
-
-        interior_rings_count = int(
-
-            gdf.geometry.apply(
-
-                Importer.count_holes
-
-            ).sum()
-
-        )
-
-        area = round(
-
-            calc.area.sum()
-
-            / 10000,
-
-            2
-
-        )
-
-        perimeter = round(
-
-            calc.length.sum(),
-
-            2
-
+        interior_rings_count = (
+            GeometryService.count_interior_rings(
+                gdf
+            )
         )
 
         overall = "Aprovado"
 
         if (
-
-            invalid_count
-            or null_count
-            or empty_count
+            invalid_count > 0
+            or null_count > 0
+            or empty_count > 0
             or missing
-
+            or gdf.crs is None
         ):
-
             overall = "Requer atenção"
 
         return {
-
-            "components":
-                ", ".join(components),
-
-            "missing_components":
-
+            "components": ", ".join(components),
+            "missing_components": (
                 ", ".join(missing)
-
                 if missing
-
-                else "Nenhum",
-
-            "crs":
-                str(gdf.crs),
-
-            "calculation_crs":
-                calculation_crs.to_string(),
-
-            "features":
-                len(gdf),
-
-            "geometry":
-                gdf.geom_type.iloc[0],
-
-            "geometry_types":
-                ", ".join(geometry_types),
-
-            "area_ha":
-                area,
-
-            "perimeter_m":
-                perimeter,
-
-            "is_valid":
-                invalid_count == 0,
-
-            "invalid_count":
-                invalid_count,
-
-            "null_count":
-                null_count,
-
-            "empty_count":
-                empty_count,
-
-            "multipart_count":
-                multipart_count,
-
-            "duplicate_count":
-                duplicate_count,
-
-            "interior_rings_count":
-                interior_rings_count,
-
-            "overall_result":
-                overall,
-
+                else "Nenhum"
+            ),
+            "crs": crs_text,
+            "features": len(gdf),
+            "geometry": (
+                geometry_types[0]
+                if geometry_types
+                else "Desconhecida"
+            ),
+            "geometry_types": ", ".join(
+                geometry_types
+            ),
+            "is_valid": (
+                invalid_count == 0
+                and null_count == 0
+                and empty_count == 0
+            ),
+            "invalid_count": invalid_count,
+            "null_count": null_count,
+            "empty_count": empty_count,
+            "multipart_count": multipart_count,
+            "duplicate_count": duplicate_count,
+            "interior_rings_count": (
+                interior_rings_count
+            ),
+            "overall_result": overall,
         }
-
-    @staticmethod
-    def count_holes(geometry):
-
-        if geometry is None:
-            return 0
-
-        if geometry.is_empty:
-            return 0
-
-        if isinstance(
-            geometry,
-            Polygon
-        ):
-
-            return len(
-                geometry.interiors
-            )
-
-        if isinstance(
-            geometry,
-            MultiPolygon
-        ):
-
-            return sum(
-
-                len(poly.interiors)
-
-                for poly
-
-                in geometry.geoms
-
-            )
-
-        return 0
 
     @staticmethod
     def _check_components(path):
 
-        base = os.path.splitext(path)[0]
+        base_path = os.path.splitext(path)[0]
 
         found = []
         missing = []
 
-        for ext in Importer.REQUIRED_COMPONENTS:
+        for extension in (
+            Importer.REQUIRED_COMPONENTS
+        ):
+            component_path = (
+                base_path + extension
+            )
 
-            file = base + ext
-
-            if os.path.exists(file):
-
-                found.append(ext)
-
+            if os.path.exists(component_path):
+                found.append(extension)
             else:
-
-                missing.append(ext)
+                missing.append(extension)
 
         return found, missing
 
@@ -272,69 +176,45 @@ class Importer:
 
         gdf = gpd.read_file(path)
 
-        invalid = (
-
-            gdf.geometry.notna()
-
-            & (~gdf.geometry.is_valid)
-
+        corrected = (
+            GeometryService.fix_invalid_geometries(
+                gdf
+            )
         )
 
-        if invalid.sum() == 0:
-
-            raise Exception(
-
+        if corrected.geometry.equals(
+            gdf.geometry
+        ):
+            raise ValueError(
                 "Não existem geometrias inválidas."
-
             )
 
-        fixed = gdf.copy()
-
-        fixed.loc[
-            invalid,
-            "geometry"
-        ] = (
-
-            fixed.loc[
-                invalid,
-                "geometry"
-            ].make_valid()
-
-        )
-
-        base = os.path.splitext(
-
+        base_name = os.path.splitext(
             os.path.basename(path)
-
         )[0]
 
-        output, _ = QFileDialog.getSaveFileName(
-
-            parent,
-
-            "Salvar Shapefile",
-
-            f"{base}_corrigido.shp",
-
-            "Shapefile (*.shp)",
-
+        output_path, _ = (
+            QFileDialog.getSaveFileName(
+                parent,
+                "Salvar Shapefile corrigido",
+                f"{base_name}_corrigido.shp",
+                "Shapefile (*.shp)",
+            )
         )
 
-        if not output:
+        if not output_path:
             return None
 
-        if not output.lower().endswith(".shp"):
+        if not output_path.lower().endswith(
+            ".shp"
+        ):
+            output_path += ".shp"
 
-            output += ".shp"
-
-        fixed.to_file(
-
-            output,
-
+        corrected.to_file(
+            output_path,
             driver="ESRI Shapefile",
-
             encoding="utf-8",
-
+            index=False,
         )
 
-        return output
+        return output_path
