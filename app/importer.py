@@ -1,7 +1,8 @@
 """
 ===============================================================================
 GeoCAR Tools
-MVP v1.9
+Versão 2.1
+Importer
 ===============================================================================
 """
 
@@ -14,7 +15,13 @@ from shapely.geometry import MultiPolygon, Polygon
 
 class Importer:
 
-    REQUIRED_COMPONENTS = (".shp", ".shx", ".dbf", ".prj", ".cpg")
+    REQUIRED_COMPONENTS = (
+        ".shp",
+        ".shx",
+        ".dbf",
+        ".prj",
+        ".cpg",
+    )
 
     @staticmethod
     def select_shapefile(parent):
@@ -23,7 +30,7 @@ class Importer:
             parent,
             "Selecionar Shapefile",
             "",
-            "Shapefile (*.shp)"
+            "Shapefile (*.shp)",
         )
 
         return filename
@@ -31,21 +38,29 @@ class Importer:
     @staticmethod
     def load_shapefile(path):
 
-        components, missing = Importer._check_components(path)
+        components, missing = (
+            Importer._check_components(path)
+        )
 
         gdf = gpd.read_file(path)
 
         if gdf.empty:
-            raise Exception("O shapefile não possui feições.")
+            raise Exception(
+                "O shapefile não possui feições."
+            )
 
         if gdf.crs is None:
-            raise Exception("O shapefile não possui CRS.")
+            raise Exception(
+                "O shapefile não possui CRS."
+            )
 
         calculation_crs = gdf.estimate_utm_crs()
 
         if calculation_crs is None:
+
             raise Exception(
-                "Não foi possível determinar um CRS para cálculo."
+                "Não foi possível determinar "
+                "um CRS adequado."
             )
 
         calc = gdf.to_crs(calculation_crs)
@@ -67,59 +82,92 @@ class Importer:
         )
 
         multipart_count = int(
+
             gdf.geometry.apply(
-                lambda g: isinstance(
+
+                lambda g:
+
+                isinstance(
                     g,
                     MultiPolygon
                 )
+
             ).sum()
+
         )
 
         duplicate_count = int(
-            gdf.geometry.astype(str).duplicated().sum()
+
+            gdf.geometry.astype(str)
+
+            .duplicated()
+
+            .sum()
+
         )
 
         interior_rings_count = int(
+
             gdf.geometry.apply(
+
                 Importer.count_holes
+
             ).sum()
+
         )
 
         area = round(
-            calc.area.sum() / 10000,
+
+            calc.area.sum()
+
+            / 10000,
+
             2
+
         )
 
         perimeter = round(
+
             calc.length.sum(),
+
             2
+
         )
 
         overall = "Aprovado"
 
         if (
+
             invalid_count
             or null_count
             or empty_count
             or missing
+
         ):
+
             overall = "Requer atenção"
 
         return {
 
-            "components": ", ".join(components),
+            "components":
+                ", ".join(components),
 
             "missing_components":
+
                 ", ".join(missing)
+
                 if missing
+
                 else "Nenhum",
 
-            "crs": str(gdf.crs),
+            "crs":
+                str(gdf.crs),
 
             "calculation_crs":
                 calculation_crs.to_string(),
 
-            "features": len(gdf),
+            "features":
+                len(gdf),
 
             "geometry":
                 gdf.geom_type.iloc[0],
@@ -127,9 +175,11 @@ class Importer:
             "geometry_types":
                 ", ".join(geometry_types),
 
-            "area_ha": area,
+            "area_ha":
+                area,
 
-            "perimeter_m": perimeter,
+            "perimeter_m":
+                perimeter,
 
             "is_valid":
                 invalid_count == 0,
@@ -166,14 +216,28 @@ class Importer:
         if geometry.is_empty:
             return 0
 
-        if isinstance(geometry, Polygon):
-            return len(geometry.interiors)
+        if isinstance(
+            geometry,
+            Polygon
+        ):
 
-        if isinstance(geometry, MultiPolygon):
+            return len(
+                geometry.interiors
+            )
+
+        if isinstance(
+            geometry,
+            MultiPolygon
+        ):
 
             return sum(
+
                 len(poly.interiors)
-                for poly in geometry.geoms
+
+                for poly
+
+                in geometry.geoms
+
             )
 
         return 0
@@ -191,57 +255,86 @@ class Importer:
             file = base + ext
 
             if os.path.exists(file):
+
                 found.append(ext)
+
             else:
+
                 missing.append(ext)
 
         return found, missing
 
     @staticmethod
-    def fix_invalid_geometries(parent, path):
+    def fix_invalid_geometries(
+        parent,
+        path,
+    ):
 
         gdf = gpd.read_file(path)
 
         invalid = (
+
             gdf.geometry.notna()
+
             & (~gdf.geometry.is_valid)
+
         )
 
         if invalid.sum() == 0:
+
             raise Exception(
+
                 "Não existem geometrias inválidas."
+
             )
 
         fixed = gdf.copy()
 
-        fixed.loc[invalid, "geometry"] = (
+        fixed.loc[
+            invalid,
+            "geometry"
+        ] = (
+
             fixed.loc[
                 invalid,
                 "geometry"
             ].make_valid()
+
         )
 
         base = os.path.splitext(
+
             os.path.basename(path)
+
         )[0]
 
         output, _ = QFileDialog.getSaveFileName(
+
             parent,
+
             "Salvar Shapefile",
+
             f"{base}_corrigido.shp",
-            "Shapefile (*.shp)"
+
+            "Shapefile (*.shp)",
+
         )
 
         if not output:
             return None
 
         if not output.lower().endswith(".shp"):
+
             output += ".shp"
 
         fixed.to_file(
+
             output,
+
             driver="ESRI Shapefile",
-            encoding="utf-8"
+
+            encoding="utf-8",
+
         )
 
         return output

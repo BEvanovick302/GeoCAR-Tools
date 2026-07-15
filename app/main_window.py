@@ -1,7 +1,7 @@
 """
 ===============================================================================
 GeoCAR Tools
-MVP v1.9
+Versão 3.0
 ===============================================================================
 """
 
@@ -21,7 +21,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.exporter import Exporter
 from app.importer import Importer
+from app.json_reader import JsonReader
+from app.json_reporter import JsonReporter
+from app.json_validator import JsonValidator
 
 
 class MainWindow(QMainWindow):
@@ -29,11 +33,19 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("GeoCAR Tools - MVP v1.9")
-        self.resize(1200, 900)
+        self.setWindowTitle("GeoCAR Tools - V3.0")
+        self.resize(1320, 920)
+        self.setMinimumSize(1050, 720)
 
         self.data = None
         self.filename = None
+
+        self.json_data = None
+        self.json_filename = None
+        self.json_summary = None
+        self.json_layers = {}
+        self.json_validation = {}
+        self.json_validation_summary = None
 
         self.create_ui()
 
@@ -43,82 +55,131 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(central)
 
         titulo = QLabel("🌎 GeoCAR Tools")
-        titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        titulo.setStyleSheet("""
-            font-size:26px;
-            font-weight:bold;
-            padding:10px;
-        """)
+        titulo.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
+        titulo.setStyleSheet(
+            """
+            font-size: 26px;
+            font-weight: bold;
+            padding: 10px;
+            """
+        )
 
         subtitulo = QLabel(
-            "Validação automática de arquivos CAR"
+            "Validação de Shapefile e conversão de JSON do SICAR"
         )
-        subtitulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitulo.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
 
         botoes = QHBoxLayout()
 
-        self.button_import = QPushButton("Importar")
-        self.button_import.clicked.connect(self.import_shape)
+        self.button_import = QPushButton(
+            "Importar Shapefile"
+        )
+        self.button_import.clicked.connect(
+            self.import_shape
+        )
 
-        self.button_fix = QPushButton("Corrigir")
+        self.button_json = QPushButton(
+            "Importar JSON SICAR"
+        )
+        self.button_json.clicked.connect(
+            self.import_json
+        )
+
+        self.button_validate_json = QPushButton(
+            "Validar JSON"
+        )
+        self.button_validate_json.setEnabled(False)
+        self.button_validate_json.clicked.connect(
+            self.validate_json_layers
+        )
+
+        self.button_export_json = QPushButton(
+            "Exportar Camadas SICAR"
+        )
+        self.button_export_json.setEnabled(False)
+        self.button_export_json.clicked.connect(
+            self.export_json_layers
+        )
+
+        self.button_json_report = QPushButton(
+            "Relatório JSON"
+        )
+        self.button_json_report.setEnabled(False)
+        self.button_json_report.clicked.connect(
+            self.export_json_report
+        )
+
+        self.button_fix = QPushButton(
+            "Corrigir Geometrias"
+        )
         self.button_fix.setEnabled(False)
-        self.button_fix.clicked.connect(self.fix_geometries)
+        self.button_fix.clicked.connect(
+            self.fix_geometries
+        )
 
-        self.button_export = QPushButton("Relatório")
+        self.button_export = QPushButton(
+            "Relatório Shapefile"
+        )
         self.button_export.setEnabled(False)
-        self.button_export.clicked.connect(self.export_report)
+        self.button_export.clicked.connect(
+            self.export_report
+        )
 
-        self.button_clear = QPushButton("Limpar")
+        self.button_clear = QPushButton(
+            "Limpar"
+        )
         self.button_clear.setEnabled(False)
-        self.button_clear.clicked.connect(self.clear_results)
+        self.button_clear.clicked.connect(
+            self.clear_results
+        )
 
         botoes.addWidget(self.button_import)
+        botoes.addWidget(self.button_json)
+        botoes.addWidget(self.button_validate_json)
+        botoes.addWidget(self.button_export_json)
+        botoes.addWidget(self.button_json_report)
         botoes.addWidget(self.button_fix)
         botoes.addWidget(self.button_export)
         botoes.addWidget(self.button_clear)
 
         self.fields = [
-
             "Arquivo",
             "Componentes",
             "Arquivos ausentes",
-
             "CRS original",
             "CRS cálculo",
-
             "Feições",
-
             "Geometria principal",
             "Tipos",
-
             "Área (ha)",
             "Perímetro (m)",
-
             "Válido",
-
             "Inválidas",
             "Nulas",
             "Vazias",
-
             "Multipartes",
             "Buracos",
-
             "Duplicadas",
-
-            "Resultado"
-
+            "Resultado",
         ]
 
         self.table = QTableWidget(
             len(self.fields),
-            2
+            2,
         )
 
         self.table.setHorizontalHeaderLabels(
             ["Campo", "Valor"]
         )
 
-        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().setStretchLastSection(
+            True
+        )
+
         self.table.verticalHeader().setVisible(False)
 
         self.table.setEditTriggers(
@@ -132,47 +193,69 @@ class MainWindow(QMainWindow):
             self.table.setItem(
                 linha,
                 0,
-                QTableWidgetItem(campo)
+                QTableWidgetItem(campo),
             )
 
             self.table.setItem(
                 linha,
                 1,
-                QTableWidgetItem("-")
+                QTableWidgetItem("-"),
             )
 
         self.table.resizeColumnsToContents()
 
-        self.lbl_status = QLabel(
-            "Status: Aguardando seleção."
+        self.lbl_json = QLabel(
+            "JSON SICAR: nenhum arquivo carregado."
         )
+        self.lbl_json.setWordWrap(True)
+
+        self.lbl_json_validation = QLabel(
+            "Validação JSON: não executada."
+        )
+        self.lbl_json_validation.setWordWrap(True)
+
+        self.lbl_status = QLabel(
+            "Status: aguardando seleção."
+        )
+        self.lbl_status.setWordWrap(True)
 
         layout.addWidget(titulo)
         layout.addWidget(subtitulo)
         layout.addLayout(botoes)
         layout.addWidget(self.table)
+        layout.addWidget(self.lbl_json)
+        layout.addWidget(self.lbl_json_validation)
         layout.addWidget(self.lbl_status)
 
         self.setCentralWidget(central)
 
     def import_shape(self):
 
-        filename = Importer.select_shapefile(self)
+        filename = Importer.select_shapefile(
+            self
+        )
 
         if not filename:
+
             self.lbl_status.setText(
-                "Status: Operação cancelada."
+                "Status: operação cancelada."
             )
+
             return
 
         try:
+
             self.filename = filename
-            self.data = Importer.load_shapefile(filename)
+
+            self.data = Importer.load_shapefile(
+                filename
+            )
 
             self.update_table()
 
             self.button_export.setEnabled(True)
             self.button_clear.setEnabled(True)
+
             self.button_fix.setEnabled(
                 self.data["invalid_count"] > 0
             )
@@ -183,87 +266,224 @@ class MainWindow(QMainWindow):
             )
 
         except Exception as erro:
+
             self.data = None
             self.filename = None
 
             self.button_export.setEnabled(False)
             self.button_fix.setEnabled(False)
-            self.button_clear.setEnabled(False)
 
             QMessageBox.critical(
                 self,
-                "Erro",
+                "Erro ao carregar Shapefile",
                 str(erro),
             )
 
             self.lbl_status.setText(
-                "Status: Erro ao carregar shapefile."
+                "Status: erro ao carregar Shapefile."
             )
 
-    def update_table(self):
+    def import_json(self):
 
-        valores = [
-            os.path.basename(self.filename),
-            self.data["components"],
-            self.data["missing_components"],
-            self.data["crs"],
-            self.data["calculation_crs"],
-            str(self.data["features"]),
-            self.data["geometry"],
-            self.data["geometry_types"],
-            f"{self.data['area_ha']:.2f}",
-            f"{self.data['perimeter_m']:.2f}",
-            "Sim" if self.data["is_valid"] else "Não",
-            str(self.data["invalid_count"]),
-            str(self.data["null_count"]),
-            str(self.data["empty_count"]),
-            str(self.data["multipart_count"]),
-            str(self.data["interior_rings_count"]),
-            str(self.data["duplicate_count"]),
-            self.data["overall_result"],
-        ]
-
-        for linha, valor in enumerate(valores):
-            self.table.item(linha, 1).setText(str(valor))
-
-        self.table.resizeColumnsToContents()
-        self.table.horizontalHeader().setStretchLastSection(True)
-
-    def clear_results(self):
-
-        self.data = None
-        self.filename = None
-
-        for linha in range(len(self.fields)):
-            self.table.item(linha, 1).setText("-")
-
-        self.button_export.setEnabled(False)
-        self.button_fix.setEnabled(False)
-        self.button_clear.setEnabled(False)
-
-        self.lbl_status.setText(
-            "Status: Resultados limpos."
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Selecionar arquivo JSON do SICAR",
+            "",
+            "Arquivo JSON (*.json)",
         )
 
+        if not filename:
+
+            self.lbl_status.setText(
+                "Status: importação do JSON cancelada."
+            )
+
+            return
+
+        try:
+
+            json_data = JsonReader.open(
+                filename
+            )
+
+            json_layers = JsonReader.extract_layers(
+                json_data
+            )
+
+            summary = JsonReader.summary(
+                json_data
+            )
+
+            self.json_filename = filename
+            self.json_data = json_data
+            self.json_layers = json_layers
+            self.json_summary = summary
+            self.json_validation = {}
+            self.json_validation_summary = None
+
+            layer_names = sorted(
+                json_layers.keys()
+            )
+
+            layers_text = (
+                ", ".join(layer_names)
+                if layer_names
+                else "Nenhuma camada encontrada"
+            )
+
+            self.lbl_json.setText(
+                f"JSON SICAR: {os.path.basename(filename)} | "
+                f"Camadas: {len(layer_names)} | "
+                f"Geometrias: {summary['geometry_count']} | "
+                f"{layers_text}"
+            )
+
+            self.lbl_json_validation.setText(
+                "Validação JSON: não executada."
+            )
+
+            self.button_validate_json.setEnabled(
+                bool(json_layers)
+            )
+
+            self.button_export_json.setEnabled(
+                bool(json_layers)
+            )
+
+            self.button_json_report.setEnabled(False)
+            self.button_clear.setEnabled(True)
+
+            QMessageBox.information(
+                self,
+                "JSON SICAR carregado",
+                (
+                    f"Arquivo: "
+                    f"{os.path.basename(filename)}\n\n"
+                    f"Camadas oficiais encontradas: "
+                    f"{len(layer_names)}\n"
+                    f"Geometrias encontradas: "
+                    f"{summary['geometry_count']}\n"
+                    f"Polígonos: "
+                    f"{summary['polygon_count']}\n"
+                    f"MultiPolígonos: "
+                    f"{summary['multipolygon_count']}\n"
+                    f"Pontos: "
+                    f"{summary['point_count']}\n"
+                    f"Linhas: "
+                    f"{summary['line_count']}\n\n"
+                    f"{self._format_layers(layer_names)}"
+                ),
+            )
+
+            self.lbl_status.setText(
+                f"Status: JSON SICAR "
+                f"{os.path.basename(filename)} "
+                "carregado com sucesso."
+            )
+
+        except Exception as erro:
+
+            self.json_data = None
+            self.json_filename = None
+            self.json_layers = {}
+            self.json_summary = None
+            self.json_validation = {}
+            self.json_validation_summary = None
+
+            self.button_validate_json.setEnabled(False)
+            self.button_export_json.setEnabled(False)
+            self.button_json_report.setEnabled(False)
+
+            QMessageBox.critical(
+                self,
+                "Erro ao carregar JSON",
+                str(erro),
+            )
+
+            self.lbl_status.setText(
+                "Status: erro ao carregar JSON."
+            )
+
+    def validate_json_layers(self):
+
+        if not self.json_layers:
+            return
+
+        try:
+
+            results = JsonValidator.validate_layers(
+                self.json_layers
+            )
+
+            summary = JsonValidator.create_summary(
+                results
+            )
+
+            self.json_validation = results
+            self.json_validation_summary = summary
+
+            self.button_json_report.setEnabled(True)
+
+            self.lbl_json_validation.setText(
+                "Validação JSON: "
+                f"{summary['overall_result']} | "
+                f"Camadas: {summary['layer_count']} | "
+                f"Aprovadas: {summary['approved_layers']} | "
+                f"Requer atenção: "
+                f"{summary['attention_layers']} | "
+                f"Inválidas: {summary['invalid_count']} | "
+                f"Nulas: {summary['null_count']} | "
+                f"Vazias: {summary['empty_count']} | "
+                f"Duplicadas: {summary['duplicate_count']}"
+            )
+
+            QMessageBox.information(
+                self,
+                "Validação do JSON",
+                self._format_validation_report(
+                    results,
+                    summary,
+                ),
+            )
+
+            self.lbl_status.setText(
+                "Status: validação das camadas JSON concluída."
+            )
+
+        except Exception as erro:
+
+            self.button_json_report.setEnabled(False)
+
+            QMessageBox.critical(
+                self,
+                "Erro na validação",
+                str(erro),
+            )
+
+            self.lbl_status.setText(
+                "Status: erro ao validar camadas JSON."
+            )
+            
     def fix_geometries(self):
 
         if not self.filename:
             return
 
         try:
-            output_path = Importer.fix_invalid_geometries(
+
+            output = Importer.fix_invalid_geometries(
                 self,
                 self.filename,
             )
 
-            if not output_path:
-                self.lbl_status.setText(
-                    "Status: Correção cancelada."
-                )
+            if not output:
                 return
 
-            self.filename = output_path
-            self.data = Importer.load_shapefile(output_path)
+            self.filename = output
+
+            self.data = Importer.load_shapefile(
+                output
+            )
 
             self.update_table()
 
@@ -273,15 +493,16 @@ class MainWindow(QMainWindow):
 
             QMessageBox.information(
                 self,
-                "Correção concluída",
-                "Shapefile corrigido e salvo com sucesso.",
+                "GeoCAR Tools",
+                "Geometrias corrigidas com sucesso.",
             )
 
             self.lbl_status.setText(
-                f"Status: Arquivo corrigido salvo em {output_path}"
+                f"Status: arquivo corrigido salvo em {output}"
             )
 
         except Exception as erro:
+
             QMessageBox.critical(
                 self,
                 "Erro ao corrigir",
@@ -289,63 +510,67 @@ class MainWindow(QMainWindow):
             )
 
             self.lbl_status.setText(
-                "Status: Erro ao corrigir geometrias."
+                "Status: erro ao corrigir geometrias."
             )
-
+            
     def export_report(self):
 
-        if not self.data or not self.filename:
+        if not self.filename or not self.data:
             return
 
-        nome_base = os.path.splitext(
+        nome = os.path.splitext(
             os.path.basename(self.filename)
         )[0]
 
-        report_path, _ = QFileDialog.getSaveFileName(
+        output, _ = QFileDialog.getSaveFileName(
             self,
-            "Salvar Relatório",
-            f"relatorio_{nome_base}.txt",
+            "Salvar relatório",
+            f"relatorio_{nome}.txt",
             "Arquivo de texto (*.txt)",
         )
 
-        if not report_path:
-            self.lbl_status.setText(
-                "Status: Exportação cancelada."
-            )
+        if not output:
             return
 
-        if not report_path.lower().endswith(".txt"):
-            report_path += ".txt"
-
-        report = (
-            "GeoCAR Tools\n"
-            "Relatório de análise do Shapefile\n"
-            "========================================\n\n"
-            f"Arquivo: {os.path.basename(self.filename)}\n"
-            f"Caminho: {self.filename}\n"
-            f"Componentes encontrados: {self.data['components']}\n"
-            f"Arquivos ausentes: {self.data['missing_components']}\n"
-            f"CRS original: {self.data['crs']}\n"
-            f"CRS usado nos cálculos: {self.data['calculation_crs']}\n"
-            f"Feições: {self.data['features']}\n"
-            f"Geometria principal: {self.data['geometry']}\n"
-            f"Tipos de geometria: {self.data['geometry_types']}\n"
-            f"Área total (ha): {self.data['area_ha']:.2f}\n"
-            f"Perímetro total (m): {self.data['perimeter_m']:.2f}\n"
-            f"Geometria válida: "
-            f"{'Sim' if self.data['is_valid'] else 'Não'}\n"
-            f"Geometrias inválidas: {self.data['invalid_count']}\n"
-            f"Geometrias nulas: {self.data['null_count']}\n"
-            f"Geometrias vazias: {self.data['empty_count']}\n"
-            f"Geometrias multipartes: {self.data['multipart_count']}\n"
-            f"Buracos internos: {self.data['interior_rings_count']}\n"
-            f"Geometrias duplicadas: {self.data['duplicate_count']}\n"
-            f"Resultado geral: {self.data['overall_result']}\n"
-        )
+        if not output.lower().endswith(".txt"):
+            output += ".txt"
 
         try:
-            with open(report_path, "w", encoding="utf-8") as arquivo:
-                arquivo.write(report)
+
+            with open(
+                output,
+                "w",
+                encoding="utf-8",
+            ) as arquivo:
+
+                valores = [
+                    os.path.basename(self.filename),
+                    self.data["components"],
+                    self.data["missing_components"],
+                    self.data["crs"],
+                    self.data["calculation_crs"],
+                    self.data["features"],
+                    self.data["geometry"],
+                    self.data["geometry_types"],
+                    self.data["area_ha"],
+                    self.data["perimeter_m"],
+                    "Sim" if self.data["is_valid"] else "Não",
+                    self.data["invalid_count"],
+                    self.data["null_count"],
+                    self.data["empty_count"],
+                    self.data["multipart_count"],
+                    self.data["interior_rings_count"],
+                    self.data["duplicate_count"],
+                    self.data["overall_result"],
+                ]
+
+                for campo, valor in zip(
+                    self.fields,
+                    valores,
+                ):
+                    arquivo.write(
+                        f"{campo}: {valor}\n"
+                    )
 
             QMessageBox.information(
                 self,
@@ -354,16 +579,261 @@ class MainWindow(QMainWindow):
             )
 
             self.lbl_status.setText(
-                f"Status: Relatório salvo em {report_path}"
+                f"Status: relatório salvo em {output}"
             )
 
         except OSError as erro:
+
             QMessageBox.critical(
                 self,
-                "Erro ao exportar",
+                "Erro ao exportar relatório",
                 str(erro),
             )
 
             self.lbl_status.setText(
-                "Status: Erro ao exportar relatório."
+                "Status: erro ao exportar relatório."
             )
+            
+    def export_json_layers(self):
+
+        if not self.json_layers:
+            return
+
+        output_dir = QFileDialog.getExistingDirectory(
+            self,
+            "Selecione a pasta de saída",
+        )
+
+        if not output_dir:
+            return
+
+        try:
+
+            exported = Exporter.export_layers_as_shapefiles(
+                self.json_layers,
+                output_dir,
+            )
+
+            gpkg_path = os.path.join(
+                output_dir,
+                "GeoCAR_Tools_SICAR.gpkg",
+            )
+
+            Exporter.export_geopackage(
+                self.json_layers,
+                gpkg_path,
+            )
+
+            QMessageBox.information(
+                self,
+                "Exportação concluída",
+                (
+                    f"{len(exported)} camada(s) exportada(s).\n\n"
+                    f"GeoPackage criado:\n{gpkg_path}"
+                ),
+            )
+
+            self.lbl_status.setText(
+                "Status: exportação do SICAR concluída."
+            )
+
+        except Exception as erro:
+
+            QMessageBox.critical(
+                self,
+                "Erro",
+                str(erro),
+            )
+
+    def export_json_report(self):
+
+        if (
+            not self.json_filename
+            or not self.json_validation_summary
+        ):
+            return
+
+        nome = os.path.splitext(
+            os.path.basename(
+                self.json_filename
+            )
+        )[0]
+
+        output, _ = QFileDialog.getSaveFileName(
+            self,
+            "Salvar relatório",
+            f"{nome}_relatorio_json.txt",
+            "Arquivo Texto (*.txt)",
+        )
+
+        if not output:
+            return
+
+        try:
+
+            JsonReporter.export_report(
+                self.json_filename,
+                self.json_validation,
+                self.json_validation_summary,
+                output,
+            )
+
+            QMessageBox.information(
+                self,
+                "Relatório",
+                "Relatório exportado com sucesso.",
+            )
+
+        except Exception as erro:
+
+            QMessageBox.critical(
+                self,
+                "Erro",
+                str(erro),
+            )
+
+    def clear_results(self):
+
+        self.data = None
+        self.filename = None
+
+        self.json_data = None
+        self.json_filename = None
+        self.json_summary = None
+        self.json_layers = {}
+        self.json_validation = {}
+        self.json_validation_summary = None
+
+        for linha in range(len(self.fields)):
+            self.table.item(
+                linha,
+                1,
+            ).setText("-")
+
+        self.lbl_json.setText(
+            "JSON SICAR: nenhum arquivo carregado."
+        )
+
+        self.lbl_json_validation.setText(
+            "Validação JSON: não executada."
+        )
+
+        self.button_export.setEnabled(False)
+        self.button_fix.setEnabled(False)
+        self.button_export_json.setEnabled(False)
+        self.button_validate_json.setEnabled(False)
+        self.button_json_report.setEnabled(False)
+        self.button_clear.setEnabled(False)
+
+        self.lbl_status.setText(
+            "Status: resultados limpos."
+        )
+
+    def update_table(self):
+
+        if not self.data:
+            return
+
+        valores = [
+
+            os.path.basename(self.filename),
+
+            self.data["components"],
+
+            self.data["missing_components"],
+
+            self.data["crs"],
+
+            self.data["calculation_crs"],
+
+            self.data["features"],
+
+            self.data["geometry"],
+
+            self.data["geometry_types"],
+
+            self.data["area_ha"],
+
+            self.data["perimeter_m"],
+
+            "Sim"
+            if self.data["is_valid"]
+            else "Não",
+
+            self.data["invalid_count"],
+
+            self.data["null_count"],
+
+            self.data["empty_count"],
+
+            self.data["multipart_count"],
+
+            self.data["interior_rings_count"],
+
+            self.data["duplicate_count"],
+
+            self.data["overall_result"],
+
+        ]
+
+        for linha, valor in enumerate(valores):
+
+            self.table.item(
+                linha,
+                1,
+            ).setText(str(valor))
+
+    def _format_validation_report(
+        self,
+        results,
+        summary,
+    ):
+
+        linhas = [
+
+            f"Resultado Geral: {summary['overall_result']}",
+
+            f"Camadas: {summary['layer_count']}",
+
+            f"Feições: {summary['feature_count']}",
+
+            "",
+
+        ]
+
+        for nome, dados in results.items():
+
+            linhas.extend(
+
+                [
+
+                    f"{nome}",
+
+                    f"   Resultado: {dados['result']}",
+
+                    f"   Feições: {dados['features']}",
+
+                    f"   Geometrias: {dados['geometry_types']}",
+
+                    f"   Inválidas: {dados['invalid_count']}",
+
+                    f"   Multipartes: {dados['multipart_count']}",
+
+                    "",
+
+                ]
+
+            )
+
+        return "\n".join(linhas)
+
+    @staticmethod
+    def _format_layers(layers):
+
+        if not layers:
+            return "Nenhuma camada."
+
+        return "\n".join(
+            f"• {layer}"
+            for layer in layers
+        )
