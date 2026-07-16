@@ -4,13 +4,12 @@ GeoCAR Tools
 -------------------------------------------------------------------------------
 Arquivo.....: app_state.py
 Módulo......: Estado da Aplicação
-Versão......: 4.0
+Versão......: 4.1
 Autor.......: Brian Evanovick + OpenAI
 
 Descrição...:
     Armazena os arquivos, dados e resultados atualmente carregados na
-    aplicação. Centraliza o estado para evitar variáveis espalhadas pela
-    janela principal.
+    aplicação, incluindo resultados de comparação JSON x Shapefile.
 ===============================================================================
 """
 
@@ -24,13 +23,6 @@ import geopandas as gpd
 class AppState:
     """
     Estado compartilhado do GeoCAR Tools.
-
-    Responsabilidades
-    -----------------
-    - Guardar o Shapefile atualmente carregado.
-    - Guardar o JSON atualmente carregado.
-    - Guardar as camadas extraídas do JSON.
-    - Guardar resultados de validações e comparações.
     """
 
     shapefile_path: str | None = None
@@ -49,18 +41,24 @@ class AppState:
     )
     sicar_validation: dict[str, Any] | None = None
 
+    comparison_layer_name: str | None = None
     comparison_result: dict[str, Any] | None = None
 
     def clear_shapefile(self) -> None:
-        """Remove do estado todos os dados do Shapefile."""
+        """
+        Remove do estado todos os dados do Shapefile.
+        """
 
         self.shapefile_path = None
         self.shapefile_data = None
         self.shapefile_gdf = None
-        self.comparison_result = None
+
+        self.clear_comparison()
 
     def clear_json(self) -> None:
-        """Remove do estado todos os dados do JSON."""
+        """
+        Remove do estado todos os dados do JSON.
+        """
 
         self.json_path = None
         self.json_data = None
@@ -68,26 +66,44 @@ class AppState:
         self.json_summary = None
         self.geometry_validation.clear()
         self.sicar_validation = None
+
+        self.clear_comparison()
+
+    def clear_comparison(self) -> None:
+        """
+        Limpa o resultado da comparação atual.
+        """
+
+        self.comparison_layer_name = None
         self.comparison_result = None
 
     def clear_all(self) -> None:
-        """Limpa completamente o estado da aplicação."""
+        """
+        Limpa completamente o estado da aplicação.
+        """
 
         self.clear_shapefile()
         self.clear_json()
+        self.clear_comparison()
 
     @property
     def has_shapefile(self) -> bool:
-        """Indica se existe um Shapefile carregado."""
+        """
+        Indica se existe um Shapefile carregado.
+        """
 
         return (
             self.shapefile_path is not None
             and self.shapefile_data is not None
+            and self.shapefile_gdf is not None
+            and not self.shapefile_gdf.empty
         )
 
     @property
     def has_json(self) -> bool:
-        """Indica se existe um JSON com camadas carregadas."""
+        """
+        Indica se existe um JSON com camadas carregadas.
+        """
 
         return (
             self.json_path is not None
@@ -95,7 +111,23 @@ class AppState:
         )
 
     @property
-    def can_compare(self) -> bool:
-        """Indica se JSON e Shapefile estão disponíveis para comparação."""
+    def has_comparison(self) -> bool:
+        """
+        Indica se existe um resultado de comparação.
+        """
 
-        return self.has_shapefile and self.has_json
+        return (
+            self.comparison_layer_name is not None
+            and self.comparison_result is not None
+        )
+
+    @property
+    def can_compare(self) -> bool:
+        """
+        Indica se JSON e Shapefile estão disponíveis para comparação.
+        """
+
+        return (
+            self.has_shapefile
+            and self.has_json
+        )

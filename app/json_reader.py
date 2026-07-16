@@ -97,35 +97,111 @@ class JsonReader:
                     + int(count)
                 )
 
+        recibo = "-"
+        protocolo = "-"
+
+        if isinstance(data, dict):
+
+            def procurar(obj, campo):
+
+                if isinstance(obj, dict):
+
+                    if campo in obj:
+                        return obj[campo]
+
+                    for valor in obj.values():
+
+                        resultado = procurar(
+                            valor,
+                            campo,
+                        )
+
+                        if resultado is not None:
+                            return resultado
+
+                elif isinstance(obj, list):
+
+                    for item in obj:
+
+                        resultado = procurar(
+                            item,
+                            campo,
+                        )
+
+                        if resultado is not None:
+                            return resultado
+
+                return None
+
+            valor = procurar(
+                data,
+                "idPai",
+            )
+
+            if valor is not None:
+                recibo = str(valor)
+
+            valor = procurar(
+                data,
+                "codigoProtocolo",
+            )
+
+            if valor is not None:
+                protocolo = str(valor)
+
         return {
             "type": type(data).__name__,
+
             "items": JsonReader.count_items(data),
-            "layers": sorted(layers.keys()),
+
+            "layers": sorted(
+                layers.keys()
+            ),
+
             "layer_count": len(layers),
+
             "geometry_count": sum(
                 len(gdf)
                 for gdf in layers.values()
             ),
+
             "geometry_types": geometry_types,
+
             "polygon_count": geometry_types.get(
                 "Polygon",
                 0,
             ),
+
             "multipolygon_count": geometry_types.get(
                 "MultiPolygon",
                 0,
             ),
+
             "point_count": (
-                geometry_types.get("Point", 0)
-                + geometry_types.get("MultiPoint", 0)
+                geometry_types.get(
+                    "Point",
+                    0,
+                )
+                + geometry_types.get(
+                    "MultiPoint",
+                    0,
+                )
             ),
+
             "line_count": (
-                geometry_types.get("LineString", 0)
+                geometry_types.get(
+                    "LineString",
+                    0,
+                )
                 + geometry_types.get(
                     "MultiLineString",
                     0,
                 )
             ),
+
+            "idPai": recibo,
+
+            "codigoProtocolo": protocolo,
         }
 
     @staticmethod

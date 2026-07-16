@@ -3,11 +3,8 @@
 GeoCAR Tools
 -------------------------------------------------------------------------------
 Arquivo.....: main.py
-Versão......: 4.0
+Versão......: 4.1.1
 Autor.......: Brian Evanovick + OpenAI
-
-Descrição...:
-    Inicialização da aplicação.
 ===============================================================================
 """
 
@@ -20,9 +17,6 @@ from app.main_window import MainWindow
 
 
 def main():
-    """
-    Inicializa a aplicação.
-    """
 
     app = QApplication(sys.argv)
 
@@ -37,7 +31,7 @@ def main():
     state = AppState()
 
     window = MainWindow(
-        state=state
+        state
     )
 
     window.show()

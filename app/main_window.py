@@ -1,15 +1,8 @@
 """
 ===============================================================================
 GeoCAR Tools
--------------------------------------------------------------------------------
-Arquivo.....: main_window.py
-Módulo......: Interface Principal
-Versão......: 4.0
-Autor.......: Brian Evanovick + OpenAI
-
-Descrição...:
-    Janela principal do GeoCAR Tools integrada ao estado, controllers,
-    serviços e exportadores da aplicação.
+Arquivo.....: app/main_window.py
+Versão......: 4.1.1
 ===============================================================================
 """
 
@@ -17,6 +10,7 @@ import os
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -29,17 +23,25 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.controllers.json_controller import JsonController
-from app.controllers.shapefile_controller import ShapefileController
-from app.core.app_state import AppState
+from app.controllers.comparison_controller import (
+    ComparisonController,
+)
+from app.controllers.json_controller import (
+    JsonController,
+)
+from app.controllers.shapefile_controller import (
+    ShapefileController,
+)
+from app.core.app_state import (
+    AppState,
+)
 from app.exporter import Exporter
-from app.exporters.report_exporter import ReportExporter
+from app.exporters.report_exporter import (
+    ReportExporter,
+)
 
 
 class MainWindow(QMainWindow):
-    """
-    Janela principal do GeoCAR Tools.
-    """
 
     def __init__(
         self,
@@ -50,1019 +52,1019 @@ class MainWindow(QMainWindow):
         self.state = state
 
         self.setWindowTitle(
-            "GeoCAR Tools - V4.0"
+            "GeoCAR Tools V4.1.1"
         )
-        self.resize(1380, 940)
-        self.setMinimumSize(1100, 740)
 
-        self._create_ui()
+        self.resize(
+            1450,
+            930,
+        )
 
-    def _create_ui(self) -> None:
-        """
-        Cria os componentes da interface.
-        """
+        self.create_ui()
+
+    def create_ui(self):
 
         central = QWidget()
-        layout = QVBoxLayout(central)
 
-        title = QLabel(
+        layout = QVBoxLayout(
+            central
+        )
+
+        titulo = QLabel(
             "🌎 GeoCAR Tools"
         )
-        title.setAlignment(
-            Qt.AlignmentFlag.AlignCenter
-        )
-        title.setStyleSheet(
-            """
-            font-size: 26px;
-            font-weight: bold;
-            padding: 10px;
-            """
-        )
 
-        subtitle = QLabel(
-            "Análise de Shapefile e JSON do SICAR"
-        )
-        subtitle.setAlignment(
+        titulo.setAlignment(
             Qt.AlignmentFlag.AlignCenter
         )
 
-        first_button_row = QHBoxLayout()
-        second_button_row = QHBoxLayout()
-
-        self.button_import_shape = QPushButton(
-            "Importar Shapefile"
+        titulo.setStyleSheet(
+            """
+            font-size:28px;
+            font-weight:bold;
+            padding:10px;
+            """
         )
-        self.button_import_shape.clicked.connect(
+
+        subtitulo = QLabel(
+            "Validação • Comparação • Conversão • SICAR"
+        )
+
+        subtitulo.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
+
+        botoes1 = QHBoxLayout()
+        botoes2 = QHBoxLayout()
+
+        self.bt_import_shape = QPushButton(
+            "Importar Shape"
+        )
+        self.bt_import_shape.clicked.connect(
             self.import_shapefile
         )
 
-        self.button_import_json = QPushButton(
-            "Importar JSON SICAR"
+        self.bt_import_json = QPushButton(
+            "Importar JSON"
         )
-        self.button_import_json.clicked.connect(
+        self.bt_import_json.clicked.connect(
             self.import_json
         )
 
-        self.button_validate_json = QPushButton(
-            "Validar Geometrias JSON"
+        self.cmb_layers = QComboBox()
+
+        self.cmb_layers.setMinimumWidth(
+            260
         )
-        self.button_validate_json.setEnabled(
+
+        self.cmb_layers.setEnabled(
             False
         )
-        self.button_validate_json.clicked.connect(
+
+        self.cmb_layers.addItem(
+            "Selecione uma camada..."
+        )
+
+        self.bt_compare = QPushButton(
+            "Comparar"
+        )
+
+        self.bt_compare.setEnabled(
+            False
+        )
+
+        self.bt_compare.clicked.connect(
+            self.compare_json_shape
+        )
+
+        self.bt_validate_json = QPushButton(
+            "Validar JSON"
+        )
+
+        self.bt_validate_json.setEnabled(
+            False
+        )
+
+        self.bt_validate_json.clicked.connect(
             self.validate_json
         )
 
-        self.button_validate_sicar = QPushButton(
-            "Validar Estrutura SICAR"
+        self.bt_validate_sicar = QPushButton(
+            "Validar SICAR"
         )
-        self.button_validate_sicar.setEnabled(
+
+        self.bt_validate_sicar.setEnabled(
             False
         )
-        self.button_validate_sicar.clicked.connect(
+
+        self.bt_validate_sicar.clicked.connect(
             self.validate_sicar
         )
 
-        self.button_export_layers = QPushButton(
-            "Exportar Camadas SICAR"
+        self.bt_export_layers = QPushButton(
+            "Exportar Camadas"
         )
-        self.button_export_layers.setEnabled(
+
+        self.bt_export_layers.setEnabled(
             False
         )
-        self.button_export_layers.clicked.connect(
+
+        self.bt_export_layers.clicked.connect(
             self.export_json_layers
         )
 
-        self.button_fix_shape = QPushButton(
-            "Corrigir Shapefile"
+        self.bt_fix = QPushButton(
+            "Corrigir Shape"
         )
-        self.button_fix_shape.setEnabled(
+
+        self.bt_fix.setEnabled(
             False
         )
-        self.button_fix_shape.clicked.connect(
+
+        self.bt_fix.clicked.connect(
             self.fix_shapefile
         )
 
-        self.button_shape_report = QPushButton(
-            "Relatório Shapefile"
+        self.bt_report_shape = QPushButton(
+            "Relatório Shape"
         )
-        self.button_shape_report.setEnabled(
+
+        self.bt_report_shape.setEnabled(
             False
         )
-        self.button_shape_report.clicked.connect(
+
+        self.bt_report_shape.clicked.connect(
             self.export_shapefile_report
         )
 
-        self.button_json_report = QPushButton(
-            "Relatório Geométrico JSON"
+        self.bt_report_json = QPushButton(
+            "Relatório JSON"
         )
-        self.button_json_report.setEnabled(
+
+        self.bt_report_json.setEnabled(
             False
         )
-        self.button_json_report.clicked.connect(
+
+        self.bt_report_json.clicked.connect(
             self.export_json_report
         )
 
-        self.button_sicar_report = QPushButton(
-            "Relatório Estrutura SICAR"
+        self.bt_report_sicar = QPushButton(
+            "Relatório SICAR"
         )
-        self.button_sicar_report.setEnabled(
+
+        self.bt_report_sicar.setEnabled(
             False
         )
-        self.button_sicar_report.clicked.connect(
+
+        self.bt_report_sicar.clicked.connect(
             self.export_sicar_report
         )
 
-        self.button_clear = QPushButton(
-            "Limpar"
+        self.bt_report_compare = QPushButton(
+            "Relatório Comparação"
         )
-        self.button_clear.setEnabled(
+
+        self.bt_report_compare.setEnabled(
             False
         )
-        self.button_clear.clicked.connect(
+
+        self.bt_report_compare.clicked.connect(
+            self.export_compare_report
+        )
+
+        self.bt_clear = QPushButton(
+            "Limpar"
+        )
+
+        self.bt_clear.setEnabled(
+            False
+        )
+
+        self.bt_clear.clicked.connect(
             self.clear_results
         )
 
-        first_button_row.addWidget(
-            self.button_import_shape
-        )
-        first_button_row.addWidget(
-            self.button_import_json
-        )
-        first_button_row.addWidget(
-            self.button_validate_json
-        )
-        first_button_row.addWidget(
-            self.button_validate_sicar
-        )
-        first_button_row.addWidget(
-            self.button_export_layers
+        botoes1.addWidget(
+            self.bt_import_shape
         )
 
-        second_button_row.addWidget(
-            self.button_fix_shape
+        botoes1.addWidget(
+            self.bt_import_json
         )
-        second_button_row.addWidget(
-            self.button_shape_report
+
+        botoes1.addWidget(
+            self.cmb_layers
         )
-        second_button_row.addWidget(
-            self.button_json_report
+
+        botoes1.addWidget(
+            self.bt_compare
         )
-        second_button_row.addWidget(
-            self.button_sicar_report
+
+        botoes1.addWidget(
+            self.bt_validate_json
         )
-        second_button_row.addWidget(
-            self.button_clear
+
+        botoes1.addWidget(
+            self.bt_validate_sicar
+        )
+
+        botoes1.addWidget(
+            self.bt_export_layers
+        )
+
+        botoes2.addWidget(
+            self.bt_fix
+        )
+
+        botoes2.addWidget(
+            self.bt_report_shape
+        )
+
+        botoes2.addWidget(
+            self.bt_report_json
+        )
+
+        botoes2.addWidget(
+            self.bt_report_sicar
+        )
+
+        botoes2.addWidget(
+            self.bt_report_compare
+        )
+
+        botoes2.addWidget(
+            self.bt_clear
         )
 
         self.fields = [
+
             "Arquivo",
             "Componentes",
             "Arquivos ausentes",
-            "CRS original",
+            "CRS",
             "CRS cálculo",
             "Feições",
-            "Tipos geométricos",
+            "Tipos",
             "Área (ha)",
             "Perímetro (m)",
             "Inválidas",
             "Nulas",
             "Vazias",
             "Multipartes",
-            "Buracos internos",
+            "Buracos",
             "Duplicadas",
             "Resultado",
+
         ]
 
         self.table = QTableWidget(
             len(self.fields),
             2,
         )
+
         self.table.setHorizontalHeaderLabels(
-            ["Campo", "Valor"]
+            [
+                "Campo",
+                "Valor",
+            ]
         )
+
         self.table.horizontalHeader().setStretchLastSection(
             True
         )
+
         self.table.verticalHeader().setVisible(
             False
         )
+
         self.table.setEditTriggers(
-            QTableWidget.EditTrigger.NoEditTriggers
-        )
-        self.table.setAlternatingRowColors(
-            True
+            QTableWidget.NoEditTriggers
         )
 
         for row, field in enumerate(
             self.fields
         ):
+
             self.table.setItem(
                 row,
                 0,
-                QTableWidgetItem(field),
+                QTableWidgetItem(
+                    field
+                ),
             )
+
             self.table.setItem(
                 row,
                 1,
-                QTableWidgetItem("-"),
+                QTableWidgetItem(
+                    "-"
+                ),
             )
 
-        self.table.resizeColumnsToContents()
-
         self.lbl_json = QLabel(
-            "JSON SICAR: nenhum arquivo carregado."
-        )
-        self.lbl_json.setWordWrap(
-            True
+            "JSON: Nenhum arquivo carregado."
         )
 
-        self.lbl_json_validation = QLabel(
-            "Validação geométrica do JSON: não executada."
-        )
-        self.lbl_json_validation.setWordWrap(
-            True
-        )
+        self.lbl_validation = QLabel()
 
-        self.lbl_sicar_validation = QLabel(
-            "Validação da estrutura SICAR: não executada."
-        )
-        self.lbl_sicar_validation.setWordWrap(
-            True
-        )
+        self.lbl_sicar = QLabel()
+
+        self.lbl_compare = QLabel()
 
         self.lbl_status = QLabel(
-            "Status: aguardando seleção."
-        )
-        self.lbl_status.setWordWrap(
-            True
+            "Status: Aguardando."
         )
 
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        layout.addLayout(first_button_row)
-        layout.addLayout(second_button_row)
-        layout.addWidget(self.table)
-        layout.addWidget(self.lbl_json)
         layout.addWidget(
-            self.lbl_json_validation
+            titulo
         )
-        layout.addWidget(
-            self.lbl_sicar_validation
-        )
-        layout.addWidget(self.lbl_status)
 
-        self.setCentralWidget(central)
+        layout.addWidget(
+            subtitulo
+        )
+
+        layout.addLayout(
+            botoes1
+        )
+
+        layout.addLayout(
+            botoes2
+        )
+
+        layout.addWidget(
+            self.table
+        )
+
+        layout.addWidget(
+            self.lbl_json
+        )
+
+        layout.addWidget(
+            self.lbl_validation
+        )
+
+        layout.addWidget(
+            self.lbl_sicar
+        )
+
+        layout.addWidget(
+            self.lbl_compare
+        )
+
+        layout.addWidget(
+            self.lbl_status
+        )
+
+        self.setCentralWidget(
+            central
+        )
         
-    def import_shapefile(self) -> None:
-        """
-        Importa e analisa um Shapefile.
-        """
+    def import_shapefile(self):
 
-        file_path, _ = QFileDialog.getOpenFileName(
+        filename, _ = QFileDialog.getOpenFileName(
             self,
             "Selecionar Shapefile",
             "",
             "Shapefile (*.shp)",
         )
 
-        if not file_path:
-            self.lbl_status.setText(
-                "Status: importação cancelada."
-            )
+        if not filename:
             return
 
         try:
+
             result = ShapefileController.load(
-                file_path
+                filename
             )
 
-            self.state.shapefile_path = result[
-                "path"
-            ]
-            self.state.shapefile_gdf = result[
-                "gdf"
-            ]
+            self.state.shapefile_path = result["path"]
+            self.state.shapefile_gdf = result["gdf"]
             self.state.shapefile_data = result
 
-            self._update_shapefile_table(
-                result
+            self.update_table(result)
+
+            self.bt_fix.setEnabled(
+                result["validation"]["invalid_count"] > 0
             )
 
-            invalid_count = result[
-                "validation"
-            ]["invalid_count"]
+            self.bt_report_shape.setEnabled(True)
 
-            self.button_fix_shape.setEnabled(
-                invalid_count > 0
-            )
-            self.button_shape_report.setEnabled(
-                True
-            )
-            self.button_clear.setEnabled(
-                True
-            )
+            self.bt_clear.setEnabled(True)
+
+            if self.state.can_compare:
+                self.bt_compare.setEnabled(True)
 
             self.lbl_status.setText(
-                "Status: Shapefile carregado "
-                f"com sucesso: {os.path.basename(file_path)}"
+                f"Shape carregado: {os.path.basename(filename)}"
             )
 
-        except Exception as error:
-            self.state.clear_shapefile()
-
-            self.button_fix_shape.setEnabled(
-                False
-            )
-            self.button_shape_report.setEnabled(
-                False
-            )
+        except Exception as erro:
 
             QMessageBox.critical(
                 self,
-                "Erro ao importar Shapefile",
-                str(error),
+                "Erro",
+                str(erro),
             )
 
-            self.lbl_status.setText(
-                "Status: erro ao importar Shapefile."
-            )
 
-    def import_json(self) -> None:
-        """
-        Importa o JSON do SICAR e extrai suas camadas.
-        """
+    def import_json(self):
 
-        file_path, _ = QFileDialog.getOpenFileName(
+        filename, _ = QFileDialog.getOpenFileName(
             self,
-            "Selecionar JSON do SICAR",
+            "Selecionar JSON",
             "",
-            "Arquivo JSON (*.json)",
+            "JSON (*.json)",
         )
 
-        if not file_path:
-            self.lbl_status.setText(
-                "Status: importação cancelada."
-            )
+        if not filename:
             return
 
         try:
+
             result = JsonController.load(
-                file_path
+                filename
             )
 
-            self.state.json_path = result[
-                "path"
-            ]
-            self.state.json_data = result[
-                "data"
-            ]
-            self.state.json_layers = result[
-                "layers"
-            ]
-            self.state.json_summary = result[
-                "summary"
-            ]
+            self.state.json_path = result["path"]
+            self.state.json_data = result["data"]
+            self.state.json_layers = result["layers"]
+            self.state.json_summary = result["summary"]
 
-            self.state.geometry_validation.clear()
-            self.state.sicar_validation = None
+            self.cmb_layers.clear()
 
-            layer_names = JsonController.layer_names(
+            self.cmb_layers.addItem(
+                "Selecione uma camada..."
+            )
+
+            for layer in ComparisonController.available_layers(
                 self.state.json_layers
-            )
+            ):
 
-            summary = self.state.json_summary
+                self.cmb_layers.addItem(
+                    layer
+                )
+
+            self.cmb_layers.setEnabled(True)
+
+            self.bt_validate_json.setEnabled(True)
+            self.bt_validate_sicar.setEnabled(True)
+            self.bt_export_layers.setEnabled(True)
+            self.bt_clear.setEnabled(True)
+
+            if self.state.can_compare:
+                self.bt_compare.setEnabled(True)
+
+            resumo = self.state.json_summary
 
             self.lbl_json.setText(
-                f"JSON SICAR: {os.path.basename(file_path)} | "
-                f"Camadas: {len(layer_names)} | "
-                f"Geometrias: {summary['geometry_count']} | "
-                f"{', '.join(layer_names)}"
+
+                f"JSON: {os.path.basename(filename)} | "
+
+                f"Camadas: {len(self.state.json_layers)} | "
+
+                f"Geometrias: {resumo['geometry_count']}"
+
             )
 
-            self.lbl_json_validation.setText(
-                "Validação geométrica do JSON: "
-                "não executada."
+            self.lbl_status.setText(
+                "JSON carregado."
             )
 
-            self.lbl_sicar_validation.setText(
-                "Validação da estrutura SICAR: "
-                "não executada."
+        except Exception as erro:
+
+            QMessageBox.critical(
+                self,
+                "Erro",
+                str(erro),
             )
 
-            has_layers = bool(
+
+    def compare_json_shape(self):
+
+        if not self.state.can_compare:
+
+            QMessageBox.warning(
+                self,
+                "Comparação",
+                "Carregue um Shape e um JSON.",
+            )
+
+            return
+
+        if self.cmb_layers.currentIndex() == 0:
+
+            QMessageBox.warning(
+                self,
+                "Comparação",
+                "Selecione uma camada.",
+            )
+
+            return
+
+        layer = self.cmb_layers.currentText()
+
+        try:
+
+            result = (
+                ComparisonController.compare_json_layer_with_shapefile(
+                    self.state.json_layers,
+                    layer,
+                    self.state.shapefile_gdf,
+                )
+            )
+
+            self.state.comparison_layer_name = layer
+            self.state.comparison_result = result
+
+            self.bt_report_compare.setEnabled(
+                True
+            )
+
+            self.lbl_compare.setText(
+
+                f"Comparação: "
+
+                f"{result['status']} | "
+
+                f"Diferença: "
+
+                f"{result['absolute_area_difference_ha']:.4f} ha"
+
+            )
+
+            QMessageBox.information(
+
+                self,
+
+                "Resultado da Comparação",
+
+                self.format_compare(result),
+
+            )
+
+        except Exception as erro:
+
+            QMessageBox.critical(
+                self,
+                "Erro",
+                str(erro),
+            )
+
+
+    def validate_json(self):
+
+        if not self.state.has_json:
+            return
+
+        validation = (
+            JsonController.validate_geometries(
                 self.state.json_layers
             )
-
-            self.button_validate_json.setEnabled(
-                has_layers
-            )
-            self.button_validate_sicar.setEnabled(
-                has_layers
-            )
-            self.button_export_layers.setEnabled(
-                has_layers
-            )
-            self.button_json_report.setEnabled(
-                False
-            )
-            self.button_sicar_report.setEnabled(
-                False
-            )
-            self.button_clear.setEnabled(
-                True
-            )
-
-            QMessageBox.information(
-                self,
-                "JSON SICAR carregado",
-                (
-                    f"Arquivo: {os.path.basename(file_path)}\n\n"
-                    f"Camadas: {len(layer_names)}\n"
-                    f"Geometrias: {summary['geometry_count']}\n"
-                    f"Polígonos: {summary['polygon_count']}\n"
-                    f"Multipolígonos: "
-                    f"{summary['multipolygon_count']}\n"
-                    f"Pontos: {summary['point_count']}\n"
-                    f"Linhas: {summary['line_count']}\n\n"
-                    f"{self._format_layers(layer_names)}"
-                ),
-            )
-
-            self.lbl_status.setText(
-                "Status: JSON SICAR carregado "
-                f"com sucesso: {os.path.basename(file_path)}"
-            )
-
-        except Exception as error:
-            self.state.clear_json()
-
-            self.button_validate_json.setEnabled(
-                False
-            )
-            self.button_validate_sicar.setEnabled(
-                False
-            )
-            self.button_export_layers.setEnabled(
-                False
-            )
-            self.button_json_report.setEnabled(
-                False
-            )
-            self.button_sicar_report.setEnabled(
-                False
-            )
-
-            QMessageBox.critical(
-                self,
-                "Erro ao importar JSON",
-                str(error),
-            )
-
-            self.lbl_status.setText(
-                "Status: erro ao importar JSON."
-            )
-
-    def validate_json(self) -> None:
-        """
-        Valida as geometrias das camadas JSON.
-        """
-
-        if not self.state.has_json:
-            return
-
-        try:
-            validation = (
-                JsonController.validate_geometries(
-                    self.state.json_layers
-                )
-            )
-
-            self.state.geometry_validation = (
-                validation
-            )
-
-            results = validation["results"]
-            summary = validation["summary"]
-
-            self.button_json_report.setEnabled(
-                True
-            )
-
-            self.lbl_json_validation.setText(
-                "Validação geométrica do JSON: "
-                f"{summary['overall_result']} | "
-                f"Camadas: {summary['layer_count']} | "
-                f"Aprovadas: {summary['approved_layers']} | "
-                f"Requer atenção: "
-                f"{summary['attention_layers']} | "
-                f"Inválidas: {summary['invalid_count']} | "
-                f"Nulas: {summary['null_count']} | "
-                f"Vazias: {summary['empty_count']} | "
-                f"Duplicadas: {summary['duplicate_count']}"
-            )
-
-            QMessageBox.information(
-                self,
-                "Validação geométrica",
-                self._format_geometry_validation(
-                    results,
-                    summary,
-                ),
-            )
-
-            self.lbl_status.setText(
-                "Status: validação geométrica "
-                "do JSON concluída."
-            )
-
-        except Exception as error:
-            self.state.geometry_validation.clear()
-
-            self.button_json_report.setEnabled(
-                False
-            )
-
-            QMessageBox.critical(
-                self,
-                "Erro na validação geométrica",
-                str(error),
-            )
-
-            self.lbl_status.setText(
-                "Status: erro na validação "
-                "geométrica do JSON."
-            )
-
-    def validate_sicar(self) -> None:
-        """
-        Valida a estrutura de camadas do SICAR.
-        """
-
-        if not self.state.has_json:
-            return
-
-        try:
-            validation = (
-                JsonController.validate_sicar_structure(
-                    self.state.json_layers
-                )
-            )
-
-            self.state.sicar_validation = (
-                validation
-            )
-
-            missing_layers = validation[
-                "missing_layers"
-            ]
-
-            missing_text = (
-                ", ".join(missing_layers)
-                if missing_layers
-                else "Nenhuma"
-            )
-
-            result_text = (
-                "Aprovado"
-                if validation["required_ok"]
-                else "Requer atenção"
-            )
-
-            self.lbl_sicar_validation.setText(
-                "Validação da estrutura SICAR: "
-                f"{result_text} | "
-                f"Camadas: {validation['layer_count']} | "
-                f"Ausentes: {missing_text}"
-            )
-
-            self.button_sicar_report.setEnabled(
-                True
-            )
-
-            QMessageBox.information(
-                self,
-                "Validação da estrutura SICAR",
-                self._format_sicar_validation(
-                    validation
-                ),
-            )
-
-            self.lbl_status.setText(
-                "Status: validação da estrutura "
-                "SICAR concluída."
-            )
-
-        except Exception as error:
-            self.state.sicar_validation = None
-
-            self.button_sicar_report.setEnabled(
-                False
-            )
-
-            QMessageBox.critical(
-                self,
-                "Erro na validação SICAR",
-                str(error),
-            )
-
-            self.lbl_status.setText(
-                "Status: erro na validação "
-                "da estrutura SICAR."
-            )
-            
-    def export_json_layers(self) -> None:
-        """
-        Exporta as camadas do JSON para Shapefile e GeoPackage.
-        """
-
-        if not self.state.has_json:
-            return
-
-        output_directory = QFileDialog.getExistingDirectory(
-            self,
-            "Selecionar pasta de saída",
         )
 
-        if not output_directory:
+        self.state.geometry_validation = validation
+
+        self.bt_report_json.setEnabled(
+            True
+        )
+
+        summary = validation["summary"]
+
+        self.lbl_validation.setText(
+
+            f"Geometrias: "
+
+            f"{summary['overall_result']} | "
+
+            f"Camadas: {summary['layer_count']} | "
+
+            f"Inválidas: {summary['invalid_count']}"
+
+        )
+
+
+    def validate_sicar(self):
+
+        if not self.state.has_json:
+            return
+
+        validation = (
+            JsonController.validate_sicar_structure(
+                self.state.json_layers
+            )
+        )
+
+        self.state.sicar_validation = validation
+
+        self.bt_report_sicar.setEnabled(
+            True
+        )
+
+        self.lbl_sicar.setText(
+
+            f"Estrutura SICAR: "
+
+            f"{'OK' if validation['required_ok'] else 'PENDENTE'}"
+
+        )
+        
+    def export_json_layers(self):
+
+        if not self.state.has_json:
+            return
+
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Selecionar pasta",
+        )
+
+        if not folder:
             return
 
         try:
-            exported_files = (
-                Exporter.export_layers_as_shapefiles(
-                    self.state.json_layers,
-                    output_directory,
-                )
+
+            exported = Exporter.export_layers_as_shapefiles(
+                self.state.json_layers,
+                folder,
             )
 
-            geopackage_path = os.path.join(
-                output_directory,
-                "GeoCAR_Tools_SICAR.gpkg",
+            gpkg = os.path.join(
+                folder,
+                "GeoCAR_Tools.gpkg",
             )
 
             Exporter.export_geopackage(
                 self.state.json_layers,
-                geopackage_path,
+                gpkg,
             )
 
             QMessageBox.information(
+
                 self,
-                "Exportação concluída",
-                (
-                    f"{len(exported_files)} arquivo(s) "
-                    "Shapefile exportado(s).\n\n"
-                    f"GeoPackage:\n{geopackage_path}"
-                ),
+
+                "Exportação",
+
+                f"{len(exported)} camadas exportadas.\n\n{gpkg}",
+
             )
 
             self.lbl_status.setText(
-                "Status: camadas do JSON exportadas."
+                "Camadas exportadas."
             )
 
-        except Exception as error:
+        except Exception as erro:
+
             QMessageBox.critical(
                 self,
-                "Erro na exportação",
-                str(error),
+                "Erro",
+                str(erro),
             )
 
-            self.lbl_status.setText(
-                "Status: erro ao exportar camadas."
-            )
 
-    def fix_shapefile(self) -> None:
-        """
-        Corrige geometrias inválidas e salva um novo Shapefile.
-        """
+    def fix_shapefile(self):
 
         if not self.state.has_shapefile:
             return
 
-        corrected_gdf = ShapefileController.fix(
-            self.state.shapefile_path
-        )
-
-        original_name = os.path.splitext(
-            os.path.basename(
+        corrected = (
+            ShapefileController.fix(
                 self.state.shapefile_path
             )
-        )[0]
+        )
 
-        output_path, _ = QFileDialog.getSaveFileName(
+        output, _ = QFileDialog.getSaveFileName(
+
             self,
-            "Salvar Shapefile corrigido",
-            f"{original_name}_corrigido.shp",
+
+            "Salvar Shape",
+
+            "shape_corrigido.shp",
+
             "Shapefile (*.shp)",
+
         )
 
-        if not output_path:
+        if not output:
             return
 
-        if not output_path.lower().endswith(".shp"):
-            output_path += ".shp"
+        if not output.lower().endswith(".shp"):
+            output += ".shp"
 
-        try:
-            corrected_gdf.to_file(
-                output_path,
-                driver="ESRI Shapefile",
-                encoding="utf-8",
-                index=False,
-            )
+        corrected.to_file(
+            output,
+            driver="ESRI Shapefile",
+            index=False,
+            encoding="utf-8",
+        )
 
-            result = ShapefileController.load(
-                output_path
-            )
+        QMessageBox.information(
+            self,
+            "Sucesso",
+            "Shape corrigido.",
+        )
 
-            self.state.shapefile_path = result[
-                "path"
-            ]
-            self.state.shapefile_gdf = result[
-                "gdf"
-            ]
-            self.state.shapefile_data = result
 
-            self._update_shapefile_table(
-                result
-            )
-
-            self.button_fix_shape.setEnabled(
-                result["validation"][
-                    "invalid_count"
-                ] > 0
-            )
-
-            QMessageBox.information(
-                self,
-                "Correção concluída",
-                "Shapefile corrigido e salvo.",
-            )
-
-            self.lbl_status.setText(
-                f"Status: arquivo corrigido salvo em {output_path}"
-            )
-
-        except Exception as error:
-            QMessageBox.critical(
-                self,
-                "Erro ao salvar correção",
-                str(error),
-            )
-
-            self.lbl_status.setText(
-                "Status: erro ao salvar correção."
-            )
-
-    def export_shapefile_report(self) -> None:
-        """
-        Exporta o relatório do Shapefile.
-        """
+    def export_shapefile_report(self):
 
         if not self.state.has_shapefile:
             return
 
-        file_name = os.path.splitext(
-            os.path.basename(
-                self.state.shapefile_path
-            )
-        )[0]
+        file, _ = QFileDialog.getSaveFileName(
 
-        output_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Salvar relatório do Shapefile",
-            f"relatorio_{file_name}.txt",
-            "Arquivo de texto (*.txt)",
+
+            "Salvar relatório",
+
+            "relatorio_shape.txt",
+
+            "Texto (*.txt)",
+
         )
 
-        if not output_path:
+        if not file:
             return
 
-        validation = self.state.shapefile_data[
-            "validation"
-        ]
+        ReportExporter.shapefile_report(
 
-        report_data = {
-            "arquivo": os.path.basename(
-                self.state.shapefile_path
-            ),
-            "features": validation["features"],
-            "area_ha": validation["area_ha"],
-            "perimeter_m": validation[
-                "perimeter_m"
-            ],
-            "crs": validation["original_crs"],
-            "result": validation["result"],
-        }
+            file,
 
-        try:
-            saved_path = (
-                ReportExporter.shapefile_report(
-                    output_path,
-                    report_data,
-                )
-            )
+            {
 
-            QMessageBox.information(
-                self,
-                "Relatório exportado",
-                f"Relatório salvo em:\n{saved_path}",
-            )
+                "arquivo": os.path.basename(
+                    self.state.shapefile_path
+                ),
 
-            self.lbl_status.setText(
-                f"Status: relatório salvo em {saved_path}"
-            )
+                **self.state.shapefile_data[
+                    "validation"
+                ],
 
-        except Exception as error:
-            QMessageBox.critical(
-                self,
-                "Erro ao exportar relatório",
-                str(error),
-            )
+            },
 
-    def export_json_report(self) -> None:
-        """
-        Exporta o relatório geométrico das camadas JSON.
-        """
-
-        validation = (
-            self.state.geometry_validation
         )
 
-        if not validation:
-            return
-
-        output_path, _ = QFileDialog.getSaveFileName(
+        QMessageBox.information(
             self,
-            "Salvar relatório geométrico",
-            "relatorio_geometrico_json.txt",
-            "Arquivo de texto (*.txt)",
+            "Relatório",
+            "Relatório salvo."
         )
 
-        if not output_path:
+
+    def export_json_report(self):
+
+        if not self.state.geometry_validation:
             return
 
-        try:
-            saved_path = (
-                ReportExporter.geometry_report(
-                    output_path,
-                    validation["summary"],
-                )
-            )
+        file, _ = QFileDialog.getSaveFileName(
 
-            QMessageBox.information(
-                self,
-                "Relatório exportado",
-                f"Relatório salvo em:\n{saved_path}",
-            )
+        self,
 
-            self.lbl_status.setText(
-                f"Status: relatório salvo em {saved_path}"
-            )
+        "Salvar relatório",
 
-        except Exception as error:
-            QMessageBox.critical(
-                self,
-                "Erro ao exportar relatório",
-                str(error),
-            )
+        "relatorio_json.txt",
 
-    def export_sicar_report(self) -> None:
-        """
-        Exporta o relatório da estrutura SICAR.
-        """
+        "Texto (*.txt)",
 
-        validation = (
-            self.state.sicar_validation
         )
 
-        if not validation:
+        if not file:
             return
 
-        output_path, _ = QFileDialog.getSaveFileName(
+        summary = self.state.json_summary.copy()
+
+        summary["Recibo"] = summary.pop(
+            "idPai",
+            "-"
+        )
+
+        summary["Código do Protocolo"] = summary.pop(
+            "codigoProtocolo",
+            "-"
+        )
+
+        ReportExporter.geometry_report(
+
+            file,
+
+            summary,
+
+        )
+
+        QMessageBox.information(
+
             self,
-            "Salvar relatório da estrutura SICAR",
-            "relatorio_estrutura_sicar.txt",
-            "Arquivo de texto (*.txt)",
+
+            "Relatório",
+
+            "Relatório salvo.",
+
         )
 
-        if not output_path:
+
+    def export_sicar_report(self):
+
+        if not self.state.sicar_validation:
             return
 
-        try:
-            saved_path = (
-                ReportExporter.sicar_report(
-                    output_path,
-                    validation,
-                )
-            )
+        file, _ = QFileDialog.getSaveFileName(
 
-            QMessageBox.information(
-                self,
-                "Relatório exportado",
-                f"Relatório salvo em:\n{saved_path}",
-            )
+            self,
 
-            self.lbl_status.setText(
-                f"Status: relatório salvo em {saved_path}"
-            )
+            "Salvar relatório",
 
-        except Exception as error:
-            QMessageBox.critical(
-                self,
-                "Erro ao exportar relatório",
-                str(error),
-            )
+            "relatorio_sicar.txt",
 
-    def clear_results(self) -> None:
-        """
-        Limpa os dados e restaura a interface.
-        """
+            "Texto (*.txt)",
+
+        )
+
+        if not file:
+            return
+
+        ReportExporter.sicar_report(
+
+            file,
+
+            self.state.sicar_validation,
+
+        )
+
+        QMessageBox.information(
+            self,
+            "Relatório",
+            "Relatório salvo."
+        )
+
+
+    def export_compare_report(self):
+
+        if not self.state.has_comparison:
+            return
+
+        file, _ = QFileDialog.getSaveFileName(
+
+            self,
+
+            "Salvar relatório",
+
+            "comparacao_json_shape.txt",
+
+            "Texto (*.txt)",
+
+        )
+
+        if not file:
+            return
+
+        ReportExporter.comparison_report(
+
+            file,
+
+            self.state.comparison_result,
+
+        )
+
+        QMessageBox.information(
+            self,
+            "Relatório",
+            "Relatório salvo."
+        )
+        
+    def clear_results(self):
 
         self.state.clear_all()
+
+        self.cmb_layers.clear()
+
+        self.cmb_layers.addItem(
+            "Selecione uma camada..."
+        )
+
+        self.cmb_layers.setEnabled(
+            False
+        )
 
         for row in range(
             len(self.fields)
         ):
+
             self.table.item(
                 row,
                 1,
             ).setText("-")
 
+        self.bt_compare.setEnabled(
+            False
+        )
+
+        self.bt_fix.setEnabled(
+            False
+        )
+
+        self.bt_validate_json.setEnabled(
+            False
+        )
+
+        self.bt_validate_sicar.setEnabled(
+            False
+        )
+
+        self.bt_export_layers.setEnabled(
+            False
+        )
+
+        self.bt_report_shape.setEnabled(
+            False
+        )
+
+        self.bt_report_json.setEnabled(
+            False
+        )
+
+        self.bt_report_sicar.setEnabled(
+            False
+        )
+
+        self.bt_report_compare.setEnabled(
+            False
+        )
+
+        self.bt_clear.setEnabled(
+            False
+        )
+
         self.lbl_json.setText(
-            "JSON SICAR: nenhum arquivo carregado."
+            "JSON: Nenhum arquivo carregado."
         )
 
-        self.lbl_json_validation.setText(
-            "Validação geométrica do JSON: "
-            "não executada."
+        self.lbl_validation.setText(
+            ""
         )
 
-        self.lbl_sicar_validation.setText(
-            "Validação da estrutura SICAR: "
-            "não executada."
+        self.lbl_sicar.setText(
+            ""
         )
 
-        self.button_validate_json.setEnabled(
-            False
-        )
-        self.button_validate_sicar.setEnabled(
-            False
-        )
-        self.button_export_layers.setEnabled(
-            False
-        )
-        self.button_fix_shape.setEnabled(
-            False
-        )
-        self.button_shape_report.setEnabled(
-            False
-        )
-        self.button_json_report.setEnabled(
-            False
-        )
-        self.button_sicar_report.setEnabled(
-            False
-        )
-        self.button_clear.setEnabled(
-            False
+        self.lbl_compare.setText(
+            ""
         )
 
         self.lbl_status.setText(
-            "Status: resultados limpos."
+            "Status: Aguardando."
         )
 
-    def _update_shapefile_table(
+
+    def update_table(
         self,
-        result: dict,
-    ) -> None:
-        """
-        Atualiza a tabela com os dados do Shapefile.
-        """
+        result,
+    ):
 
         metadata = result["metadata"]
+
         validation = result["validation"]
 
         values = [
+
             os.path.basename(
                 result["path"]
             ),
+
             metadata["components"],
+
             metadata["missing_components"],
+
             validation["original_crs"],
+
             validation["calculation_crs"],
+
             validation["features"],
+
             validation["geometry_types"],
+
             validation["area_ha"],
+
             validation["perimeter_m"],
+
             validation["invalid_count"],
+
             validation["null_count"],
+
             validation["empty_count"],
+
             validation["multipart_count"],
+
             validation["interior_rings_count"],
+
             validation["duplicate_count"],
+
             validation["result"],
+
         ]
 
-        for row, value in enumerate(values):
+        for row, value in enumerate(
+            values
+        ):
+
             self.table.item(
                 row,
                 1,
@@ -1071,104 +1073,75 @@ class MainWindow(QMainWindow):
             )
 
         self.table.resizeColumnsToContents()
-        self.table.horizontalHeader().setStretchLastSection(
-            True
-        )
 
-    def _format_geometry_validation(
+
+    def format_compare(
         self,
-        results: dict,
-        summary: dict,
-    ) -> str:
-        """
-        Formata o resultado da validação geométrica.
-        """
+        result,
+    ):
 
-        lines = [
-            f"Resultado geral: {summary['overall_result']}",
-            f"Camadas: {summary['layer_count']}",
-            f"Feições: {summary['feature_count']}",
-            "",
-        ]
+        return f"""
+Camada JSON
 
-        for layer_name, result in results.items():
-            lines.extend(
-                [
-                    layer_name,
-                    f"  Resultado: {result['result']}",
-                    f"  Feições: {result['features']}",
-                    (
-                        "  Tipos geométricos: "
-                        f"{result['geometry_types']}"
-                    ),
-                    (
-                        "  Inválidas: "
-                        f"{result['invalid_count']}"
-                    ),
-                    (
-                        "  Multipartes: "
-                        f"{result['multipart_count']}"
-                    ),
-                    "",
-                ]
-            )
+{result['layer_name']}
 
-        return "\n".join(lines)
+--------------------------------------------
 
-    def _format_sicar_validation(
-        self,
-        validation: dict,
-    ) -> str:
-        """
-        Formata o resultado da validação estrutural SICAR.
-        """
+Feições JSON:
 
-        result_text = (
-            "Aprovado"
-            if validation["required_ok"]
-            else "Requer atenção"
-        )
+{result['json_features']}
 
-        missing_layers = (
-            ", ".join(
-                validation["missing_layers"]
-            )
-            if validation["missing_layers"]
-            else "Nenhuma"
-        )
+Feições Shape:
 
-        lines = [
-            f"Resultado: {result_text}",
-            (
-                "Camadas encontradas: "
-                f"{validation['layer_count']}"
-            ),
-            f"Camadas ausentes: {missing_layers}",
-            "",
-            "Áreas por camada:",
-        ]
+{result['shapefile_features']}
 
-        for layer_name, area in (
-            validation["areas"].items()
-        ):
-            lines.append(
-                f"• {layer_name}: {area:.4f} ha"
-            )
+--------------------------------------------
 
-        return "\n".join(lines)
+Área JSON:
 
-    @staticmethod
-    def _format_layers(
-        layers: list[str],
-    ) -> str:
-        """
-        Formata a lista de camadas.
-        """
+{result['json_area_ha']:.4f} ha
 
-        if not layers:
-            return "Nenhuma camada."
+Área Shape:
 
-        return "\n".join(
-            f"• {layer}"
-            for layer in layers
-        )
+{result['shapefile_area_ha']:.4f} ha
+
+--------------------------------------------
+
+Diferença:
+
+{result['absolute_area_difference_ha']:.4f} ha
+
+Diferença (%):
+
+{result['area_difference_percent']:.4f}
+
+--------------------------------------------
+
+Interseção:
+
+{result['intersection_area_ha']:.4f} ha
+
+Cobertura JSON:
+
+{result['intersection_percent_json']:.2f} %
+
+Cobertura Shape:
+
+{result['intersection_percent_shapefile']:.2f} %
+
+--------------------------------------------
+
+Área apenas JSON:
+
+{result['json_difference_area_ha']:.4f} ha
+
+Área apenas Shape:
+
+{result['shapefile_difference_area_ha']:.4f} ha
+
+--------------------------------------------
+
+Resultado
+
+{result['status']}
+"""
